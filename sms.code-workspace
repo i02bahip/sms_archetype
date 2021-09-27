@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"type": "emulicious-debugger",
+				"request": "launch",
+				"name": "Launch in Emulicious",
+				"program": "${workspaceFolder}/out/main.sms",
+				"port": 58870,
+				"stopOnEntry": true
+			}
+		]
+	}
+}

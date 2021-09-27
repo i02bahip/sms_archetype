@@ -1,0 +1,413 @@
+F00:0001       
+F00:0002       vdpControl = &BF
+F00:0003       vdpData    = &BE
+F00:0004       
+F00:0005       	;Unrem this if building with vasm
+F00:0006 E1011 include "inc\VasmBuildCompat.asm"
+F00:0007       
+F00:0008       	org &0000
+F00:0009       	jr ProgramStart		;&0000 - RST 0
+               S02:00000000:  18 7E
+F00:0010       	ds 6,&C9			;&0002 - RST 0
+F00:0011       	ds 8,&C9			;&0008 - RST 1
+F00:0012       	ds 8,&C9			;&0010 - RST 2
+F00:0013       	ds 8,&C9			;&0018 - RST 3
+F00:0014       	ds 8,&C9			;&0020 - RST 4
+F00:0015       	ds 8,&C9			;&0028 - RST 5
+F00:0016       	ds 8,&C9			;&0030 - RST 6
+F00:0017       	ds 8,&C9			;&0038 - RST 7
+F00:0018       	ds 38,&C9			;&0066 - NMI
+F00:0019       	ds 26,&C9			;&0080
+F00:0020       						
+F00:0021       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+F00:0022       	; effective Start address &0080
+F00:0023       ProgramStart:	
+F00:0024       	
+F00:0025           im 1    			;Interrupt mode 1
+               S02:00000080:  ED 56
+F00:0026           ld sp, &dff0		;Default stack pointer
+               S02:00000082:  31 F0 DF
+F00:0027       
+F00:0028       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+F00:0029       ;									Init the screen 												
+F00:0030       
+F00:0031       	ld hl,VdpInitData	;Source of data
+               S02:00000085:  21 C0 00
+F00:0032           ld b,VdpInitDataEnd-VdpInitData		;Byte count
+               S02:00000088:  06 16
+F00:0033           ld c,vdpControl		;Destination port
+               S02:0000008A:  0E BF
+F00:0034           otir				;Out (c),(hl).. inc HL... dec B, djnz 
+               S02:0000008C:  ED B3
+F00:0035       
+F00:0036       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+F00:0037       ;									Define Palette 												
+F00:0038       	
+F00:0039           ld hl, &c000	    ; set VRAM write address to CRAM (palette) address 0
+               S02:0000008E:  21 00 C0
+F00:0040       		; note &C0-- is a set palette command... it's not a literal memory address 
+F00:0041           call prepareVram
+               S02:00000091:  CD B7 00
+F00:0042       
+F00:0043           ld hl,PaletteData	;Source of data
+               S02:00000094:  21 D6 00
+F00:0044       	ifdef BuildSGG
+F00:0045       		ld b,16*2 		;Byte count (32 on SGG)
+F00:0046       	else
+F00:0047       		ld b,16			;Byte count (16 on SMS)
+               S02:00000097:  06 10
+F00:0048       	endif
+F00:0049       	ld c,vdpData		;Destination port
+               S02:00000099:  0E BE
+F00:0050       	otir				;Out (c),(hl).. inc HL... dec B, djnz  
+               S02:0000009B:  ED B3
+F00:0051       
+F00:0052       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0053       ;					Start of the Test Code														
+F00:0054       
+F00:0055       	;Define our character tiles
+F00:0056       	ld de, 128*8*4				;8 lines of 4 bytes per tile
+               S02:0000009D:  11 00 10
+F00:0057       	ld hl, BitmapData			;Source of bitmap data
+               S02:000000A0:  21 E6 00
+F00:0058       	ld bc, BitmapDataEnd-BitmapData;Length of bitmap data
+               S02:000000A3:  01 00 00
+F00:0059       	call DefineTiles
+               S02:000000A6:  CD 05 01
+F00:0060       	
+F00:0061       	
+F00:0062       	ld bc,&0303		;Start Position in BC
+               S02:000000A9:  01 03 03
+F00:0063       	ld hl,&0606		;Width/Height of the area to fill with tiles in HL
+               S02:000000AC:  21 06 06
+F00:0064       						;We need to load DE with the first tile number we want 
+F00:0065       						;to fill the area with.
+F00:0066       	ld de,128		;SMS has 512 tiles, so start at 256
+               S02:000000AF:  11 80 00
+F00:0067       	
+F00:0068       	call FillAreaWithTiles		;Fill a grid area with consecutive tiles 
+               S02:000000B2:  CD E6 00
+F00:0069       
+F00:0070       	di
+               S02:000000B5:  F3
+F00:0071       	halt
+               S02:000000B6:  76
+F00:0072       
+F00:0073       	
+F00:0074       	
+F00:0075       prepareVram:				;Set vdpData to write to memory address HL in vram
+F00:0076       	    ld a,l
+               S02:000000B7:  7D
+F00:0077       	    out (vdpControl),a
+               S02:000000B8:  D3 BF
+F00:0078       	    ld a,h
+               S02:000000BA:  7C
+F00:0079       	    or &40				;we set bit 6 to define that we want to Write data...
+               S02:000000BB:  F6 40
+F00:0080       	    out (vdpControl),a	;As the VDP ram only goes from &0000-&3FFF 
+               S02:000000BD:  D3 BF
+F00:0081           ret							;this does not cause a problem
+               S02:000000BF:  C9
+F00:0082       	
+F00:0083       	
+F00:0084       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0085       ;					VDP Register settings (needed to turn on screen)							
+F00:0086       
+F00:0087       VdpInitData:
+F00:0088       	db %00000110,128+0 ; reg. 0, display and interrupt mode.
+               S02:000000C0:  06
+               S02:000000C1:  80
+F00:0089       	db %11100001,128+1 ; reg. 1, display and interrupt mode.
+               S02:000000C2:  E1
+               S02:000000C3:  81
+F00:0090       	db &ff		,128+2 ; reg. 2, name table address. &ff = name table at &3800
+               S02:000000C4:  FF
+               S02:000000C5:  82
+F00:0091       	db &ff		,128+3 ; reg. 3, Name Table Base Address  (no function) &0000
+               S02:000000C6:  FF
+               S02:000000C7:  83
+F00:0092       	db &ff 		,128+4 ; reg. 4, Color Table Base Address (no function) &0000
+               S02:000000C8:  FF
+               S02:000000C9:  84
+F00:0093       	db &ff		,128+5 ; reg. 5, sprite attribute table. -DCBA98- = bits of address $3f00
+               S02:000000CA:  FF
+               S02:000000CB:  85
+F00:0094       	db &00		,128+6 ; reg. 6, sprite tile address. -----D-- = bit 13 of address $2000
+               S02:000000CC:  00
+               S02:000000CD:  86
+F00:0095       	db &00		,128+7 ; reg. 7, border color. 			----CCCC = Color
+               S02:000000CE:  00
+               S02:000000CF:  87
+F00:0096       	db &00 		,128+8 ; reg. 8, horizontal scroll value = 0.
+               S02:000000D0:  00
+               S02:000000D1:  88
+F00:0097       	db &00		,128+9 ; reg. 9, vertical scroll value = 0.
+               S02:000000D2:  00
+               S02:000000D3:  89
+F00:0098       	db &ff 		,128+10; reg. 10, raster line interrupt. Turn off line int. requests.
+               S02:000000D4:  FF
+               S02:000000D5:  8A
+F00:0099       VdpInitDataEnd:
+F00:0100       
+F00:0101       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0102       ;								Basic palette in native format									
+F00:0103       	
+F00:0104       PaletteData:
+F00:0105       	ifdef BuildSGG					;SGG
+F00:0106       		   ;GGGGRRRR, ----BBBB
+F00:0107       		db %00000000,%00000000;0
+F00:0108       		db %00000111,%00000111;1
+F00:0109       		db %11110000,%00001111;2
+F00:0110       		db %11111111,%11111111;3
+F00:0111       		db %00001111,%00001111;4
+F00:0112       		db %00001111,%00001111;5
+F00:0113       		db %00001111,%00001111;6
+F00:0114       		db %00001111,%00001111;7
+F00:0115       		db %00001111,%00001111;8
+F00:0116       		db %00001111,%00001111;9
+F00:0117       		db %00001111,%00001111;10
+F00:0118       		db %00001111,%00001111;11
+F00:0119       		db %00001111,%00001111;12
+F00:0120       		db %00001111,%00001111;13
+F00:0121       		db %00001111,%00001111;14
+F00:0122       		db %11111111,%00000000;15
+F00:0123       	else 							;SMS
+F00:0124       		;   --BBGGRR
+F00:0125       		db %00000000	;0
+               S02:000000D6:  00
+F00:0126       		db %00100010	;1
+               S02:000000D7:  22
+F00:0127       		db %00111100	;2
+               S02:000000D8:  3C
+F00:0128       		db %00111111	;3
+               S02:000000D9:  3F
+F00:0129       		db %00001111	;4
+               S02:000000DA:  0F
+F00:0130       		db %00001111	;5
+               S02:000000DB:  0F
+F00:0131       		db %00001111	;6
+               S02:000000DC:  0F
+F00:0132       		db %00001111	;7
+               S02:000000DD:  0F
+F00:0133       		db %00001111	;8
+               S02:000000DE:  0F
+F00:0134       		db %00001111	;9
+               S02:000000DF:  0F
+F00:0135       		db %00001111	;A
+               S02:000000E0:  0F
+F00:0136       		db %00001111	;B
+               S02:000000E1:  0F
+F00:0137       		db %00001111	;C
+               S02:000000E2:  0F
+F00:0138       		db %00001111	;D
+               S02:000000E3:  0F
+F00:0139       		db %00001111	;E
+               S02:000000E4:  0F
+F00:0140       		db %00001111	;F
+               S02:000000E5:  0F
+F00:0141       	endif
+F00:0142       	
+F00:0143       BitmapData:	;Sprite Data of our Chibiko character
+F00:0144 E1011 incbin "inc/RawSMS.RAW"
+F00:0145       BitmapDataEnd:
+F00:0146       
+F00:0147       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0148       
+F00:0149       FillAreaWithTiles:	;BC = X,Y	HL = W,H 	DE = Start Tile
+F00:0150       	ld a,h				;Calculate End Xpos
+               S02:000000E6:  7C
+F00:0151       	add b
+               S02:000000E7:  80
+F00:0152       	ld h,a
+               S02:000000E8:  67
+F00:0153       	ld a,l				;Calculate End Ypos
+               S02:000000E9:  7D
+F00:0154       	add c
+               S02:000000EA:  81
+F00:0155       	ld l,a
+               S02:000000EB:  6F
+F00:0156       FillAreaWithTiles_Yagain:
+F00:0157       	push bc
+               S02:000000EC:  C5
+F00:0158       		push hl
+               S02:000000ED:  E5
+F00:0159       			call GetVDPScreenPos	;Move to the correcr VDP location
+               S02:000000EE:  CD 14 01
+F00:0160       		pop hl	
+               S02:000000F1:  E1
+F00:0161       FillAreaWithTiles_Xagain:;Tilemap takes two bytes, ---pcvhn nnnnnnnn
+F00:0162       		ld a,e			;nnnnnnnn - Tile number
+               S02:000000F2:  7B
+F00:0163       		out (vdpData),a	
+               S02:000000F3:  D3 BE
+F00:0164       		ld a,d			;---pcvhn - p=Priority (1=Sprites behind) C=color palette 
+               S02:000000F5:  7A
+F00:0165       		out (vdpData),a	;(0=back 1=sprite), V=Vert Flip, H=Horiz Flip, N=Tilenum (0-511)
+               S02:000000F6:  D3 BE
+F00:0166       		inc de
+               S02:000000F8:  13
+F00:0167       		inc b			;Increase Xpos
+               S02:000000F9:  04
+F00:0168       		ld a,b
+               S02:000000FA:  78
+F00:0169       		cp h			;Are we at the end of the X-line?
+               S02:000000FB:  BC
+F00:0170       		jr nz,FillAreaWithTiles_Xagain
+               S02:000000FC:  20 F4
+F00:0171       	pop bc
+               S02:000000FE:  C1
+F00:0172       	inc c				;Increase Ypos
+               S02:000000FF:  0C
+F00:0173       	ld a,c
+               S02:00000100:  79
+F00:0174       	cp l				;Are we at the end of the height Y-line?
+               S02:00000101:  BD
+F00:0175       	jr nz,FillAreaWithTiles_Yagain
+               S02:00000102:  20 E8
+F00:0176       	ret
+               S02:00000104:  C9
+F00:0177       	
+F00:0178       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0179       DefineTiles:	;DE=VDP address, HL=Source,BC=Bytecount
+F00:0180       	ex de,hl
+               S02:00000105:  EB
+F00:0181       	call prepareVram	;Set VRAM address we want to write to
+               S02:00000106:  CD B7 00
+F00:0182       	ex de,hl
+               S02:00000109:  EB
+F00:0183       DefineTiles2:
+F00:0184       	ld a,(hl)
+               S02:0000010A:  7E
+F00:0185       	out (vdpData),a		;Send Byte to VRAM
+               S02:0000010B:  D3 BE
+F00:0186       	inc hl
+               S02:0000010D:  23
+F00:0187       	dec bc				;Decrease counter and see if we're done
+               S02:0000010E:  0B
+F00:0188       	ld a,b
+               S02:0000010F:  78
+F00:0189       	or c
+               S02:00000110:  B1
+F00:0190       	jr nz,DefineTiles2	;Continue defining tiles.
+               S02:00000111:  20 F7
+F00:0191       	ret
+               S02:00000113:  C9
+F00:0192       	
+F00:0193       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0194       
+F00:0195       GetVDPScreenPos:	;Move to a memory address in VDP by BC cursor pos
+F00:0196       	push bc				;B=Xpos, C=Ypos
+               S02:00000114:  C5
+F00:0197       		ifdef BuildSGG
+F00:0198       			ld a,c
+F00:0199       			add 3		;Need add 3 on Ypos for GG to reposition screen
+F00:0200       			ld h,a
+F00:0201       		else 
+F00:0202       			ld h,c
+               S02:00000115:  61
+F00:0203       		endif
+F00:0204       		xor a			
+               S02:00000116:  AF
+F00:0205       		rr h			;Multiply Y*64
+               S02:00000117:  CB 1C
+F00:0206       		rra
+               S02:00000119:  1F
+F00:0207       		rr h
+               S02:0000011A:  CB 1C
+F00:0208       		rra
+               S02:0000011C:  1F
+F00:0209       		rlc b			;Multiply X*2 (Two byte per tile)
+               S02:0000011D:  CB 00
+F00:0210       		or b
+               S02:0000011F:  B0
+F00:0211       		ifdef BuildSGG
+F00:0212       			add 6*2		;Need add 6 on Xpos for GG to reposition screen
+F00:0213       		endif
+F00:0214       		ld l,a
+               S02:00000120:  6F
+F00:0215       		ld a,h
+               S02:00000121:  7C
+F00:0216       		add &38			;Address of TileMap &3800 
+               S02:00000122:  C6 38
+F00:0217       		ld h,a				;(32x28 - 2 bytes per cell = &700 bytes)
+               S02:00000124:  67
+F00:0218       		call prepareVram
+               S02:00000125:  CD B7 00
+F00:0219       	pop bc
+               S02:00000128:  C1
+F00:0220       	ret
+               S02:00000129:  C9
+F00:0221       	
+F00:0222       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+F00:0223       ;										Footer													
+F00:0224       
+F00:0225       	
+F00:0226       	org &7FF0
+F00:0227       	db "TMR SEGA"	;Fixed data (needed by some SGG)
+               S03:00007FF0:  54 4D 52 20 53 45 47 41
+F00:0228       	db 0,0			;Reserved
+               S03:00007FF8:  00
+               S03:00007FF9:  00
+F00:0229       	db &69,&69		;16 bit Checksum (sum of bytes $0000-$7FEF... Little endian)
+               S03:00007FFA:  69
+               S03:00007FFB:  69
+F00:0230       					;Only needed for 'Export SMS', not checked by emulator without bios
+F00:0231       	db 0,0,0 		;BCD Product Code & Version
+               S03:00007FFC:  00
+               S03:00007FFD:  00
+               S03:00007FFE:  00
+F00:0232       	
+F00:0233       	ifdef BuildSGG	;Region & Rom size (see below) - only checked by SMS export bios
+F00:0234       		db &6C		;GG Export - 32k
+F00:0235       	else
+F00:0236       		db &4C		;SMS Export - 32k
+               S03:00007FFF:  4C
+F00:0237       	endif
+F00:0238       
+F00:0239       ;&3- SMS Japan 
+F00:0240       ;&4- SMS Export 
+F00:0241       ;&5- GG 	Japan 
+F00:0242       ;&6- GG 	Export 
+F00:0243       ;&7- GG 	International 
+F00:0244       ;&-C 32KB   
+F00:0245       ;&-F 128KB   
+F00:0246       ;&-0 256KB   
+F00:0247       ;&-1 512KB
+F00:0248       
+F00:0249        
+
+
+Sections:
+S01  .text
+S02  seg0
+S03  seg7ff0
+
+
+Sources:
+F00  main.asm
+
+
+Symbols:
+DefineTiles2 EXPR(266=0x10a) ABS 
+FillAreaWithTiles_Xagain EXPR(242=0xf2) ABS 
+GetVDPScreenPos EXPR(276=0x114) ABS 
+FillAreaWithTiles_Yagain EXPR(236=0xec) ABS 
+incbin EXPR(230=0xe6) UNUSED ABS 
+FillAreaWithTiles EXPR(230=0xe6) ABS 
+DefineTiles EXPR(261=0x105) ABS 
+BitmapDataEnd EXPR(230=0xe6) ABS 
+BitmapData EXPR(230=0xe6) ABS 
+PaletteData EXPR(214=0xd6) ABS 
+prepareVram EXPR(183=0xb7) ABS 
+VdpInitDataEnd EXPR(214=0xd6) ABS 
+VdpInitData EXPR(192=0xc0) ABS 
+ProgramStart EXPR(128=0x80) ABS 
+include LAB (0x0) UNUSED sec=.text 
+vdpData EXPR(190=0xbe) EQU 
+vdpControl EXPR(191=0xbf) EQU 
+__RPTCNT EXPR(-1=0xffff) INTERNAL 
+__VASM EXPR(0=0x0) INTERNAL 
+BuildSMS EXPR(1=0x1) UNUSED 
+vasm EXPR(1=0x1) UNUSED 
+
+There have been 2 errors!
