@@ -1,10 +1,5 @@
 ; this file was created with wlalink by ville helin <ville.helin@iki.fi>.
-; wla symbolic information for "out\main.sms".
-
-[information]
-version 2
-
-[labels]
+; no$gmb symbolic information for "out/main.sms".
 00:0068 main
 00:007f ClearVRAMLoop
 00:00a8 WriteTilesLoop
@@ -23,22 +18,3 @@ version 2
 00:0034 *WLA_SDSC_PRG_AUTHOR_PTR
 00:0027 *WLA_SDSC_PRG_NAME_PTR
 00:0006 *WLA_SDSC_PRG_NOTES_PTR
-
-[definitions]
-00000006 _sizeof_*WLA_SDSC_PRG_AUTHOR_PTR
-0000000d _sizeof_*WLA_SDSC_PRG_NAME_PTR
-00000021 _sizeof_*WLA_SDSC_PRG_NOTES_PTR
-00000017 _sizeof_main
-00000029 _sizeof_ClearVRAMLoop
-00000018 _sizeof_WriteTilesLoop
-00000012 _sizeof_WriteTextLoop
-00000003 _sizeof_Loop
-00000018 _sizeof_Message
-00000000 _sizeof_MessageEnd
-00000010 _sizeof_PaletteData
-00000000 _sizeof_PaletteDataEnd
-00000012 _sizeof_VdpInitData
-00000000 _sizeof_VdpInitDataEnd
-00000be0 _sizeof_FontData
-00000000 _sizeof_FontDataEnd
-00000200 _sizeof_BitmapData

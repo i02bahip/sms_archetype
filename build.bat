@@ -7,7 +7,7 @@ if not "%1"=="" (
 
 environment\compiler\wla-dx\bin\x86\wla-z80 -v -o out\%name%.o src\%name%.asm
 if errorlevel 1 goto :fail
-environment\compiler\wla-dx\bin\x86\wlalink -d -v -s environment\compiler\wla-dx\link\link.lk out\%name%.sms
+environment\compiler\wla-dx\bin\x86\wlalink -d -v -s environment\compiler\wla-dx\bin\x86\link.lk out\%name%.sms
 if errorlevel 1 goto :fail
 goto :done
 
